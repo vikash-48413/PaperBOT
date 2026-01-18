@@ -1,0 +1,23 @@
+pinecone-haystack>=2.0.0
+haystack-ai
+google-ai-haystack
+fastapi
+uvicorn
+python-dotenv
+pathlib
+requests
+pypdf
+sentence-transformers
+nltk
+openai>=1.0.0
+python-docx
+pandoc
+markdown
+openpyxl
+pandas
+jinja2
+psutil
+tqdm
+python-multipart
+
+-e .

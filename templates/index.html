@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PaperBOT - AI Research Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .main-container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+            font-weight: 400;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .query-section, .answer-section {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
+            background: #f9fafb;
+            color: #1f2937;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea::placeholder {
+            color: #9ca3af;
+        }
+
+        #answer {
+            background: #f3f4f6;
+            cursor: default;
+        }
+
+        #answer-display {
+            width: 100%;
+            min-height: 150px;
+            padding: 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: #ffffff;
+            color: #1f2937;
+            font-size: 15px;
+            line-height: 1.8;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #answer-display h1, #answer-display h2, #answer-display h3 {
+            color: #667eea;
+            margin-top: 16px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        #answer-display h1 { font-size: 24px; }
+        #answer-display h2 { font-size: 20px; }
+        #answer-display h3 { font-size: 18px; }
+
+        #answer-display p {
+            margin-bottom: 12px;
+            text-align: justify;
+        }
+
+        #answer-display ul, #answer-display ol {
+            margin-left: 24px;
+            margin-bottom: 12px;
+        }
+
+        #answer-display li {
+            margin-bottom: 8px;
+        }
+
+        #answer-display strong {
+            color: #374151;
+            font-weight: 600;
+        }
+
+        #answer-display code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #764ba2;
+        }
+
+        #answer-display pre {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 12px;
+        }
+
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .loading-indicator.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+        
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .options-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .option-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .option-group label {
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .form-select {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            background: #f9fafb;
+            color: #1f2937;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        @media (max-width: 640px) {
+            .options-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .upload-section {
+            background: #f9fafb;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: #f3f4f6;
+        }
+
+        .upload-section.dragging {
+            border-color: #667eea;
+            background: #ede9fe;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #374151;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 15px;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .current-document {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .current-document.no-document {
+            background: #f3f4f6;
+            border: 2px solid #d1d5db;
+        }
+
+        .doc-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .doc-icon {
+            font-size: 24px;
+        }
+
+        .doc-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: #166534;
+        }
+
+        .current-document.no-document .doc-name {
+            color: #6b7280;
+        }
+
+        .doc-status {
+            font-size: 13px;
+            font-weight: 500;
+            color: #15803d;
+            background: #dcfce7;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        .doc-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+.btn-preview {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-preview:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-preview:active {
+            transform: translateY(0);
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-delete:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-delete:active {
+            transform: translateY(0);
+        }
+        
+        .preview-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow: auto;
+        }
+        
+        .preview-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-content {
+            background-color: white;
+            margin: 20px;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .preview-header {
+            padding: 20px;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+        
+        .preview-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .preview-close {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .preview-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .preview-body {
+            flex: 1;
+            overflow: auto;
+            padding: 0;
+        }
+        
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .preview-text {
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .preview-unsupported {
+            padding: 40px;
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        .preview-unsupported h4 {
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .upload-progress {
+            display: none;
+            margin-top: 15px;
+        }
+
+        .upload-progress.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .progress-text {
+            font-size: 13px;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .tech-stack {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+            .content {
+                padding: 25px;
+            }
+        }
+    </style>
+  </head>
+  <body>
+    <div class="main-container">
+        <div class="header">
+            <h1>🤖 PaperBOT</h1>
+            <p>AI-Powered Research Paper Assistant with Document Upload</p>
+            <div class="tech-stack">
+                <span class="tech-badge">Haystack</span>
+                <span class="tech-badge">Google AI</span>
+                <span class="tech-badge">Pinecone</span>
+                <span class="tech-badge">Multi-Format Support</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Document Upload Section -->
+            <div class="current-document no-document" id="current-document">
+                <div class="doc-info">
+                    <span class="doc-icon" id="doc-icon">📭</span>
+                    <span class="doc-name" id="doc-name">No document uploaded</span>
+                </div>
+                <div class="doc-actions">
+                    <span class="doc-status" id="doc-status">Ready to upload</span>
+                    <button class="btn-preview" id="preview-btn" style="display: none;" onclick="previewDocument()">
+                        <span>👁️</span>
+                        <span>Preview</span>
+                    </button>
+                    <button class="btn-delete" id="delete-btn" style="display: none;" onclick="deleteDocument()">
+                        <span>🗑️</span>
+                        <span>Delete</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="upload-section" id="upload-section">
+                <div class="upload-icon">📤</div>
+                <div class="upload-text">Upload Your Document</div>
+                <div class="upload-hint">Supports PDF, DOCX, DOC, TXT, MD, CSV, JSON, XLSX, XLS (Max 50MB)</div>
+                <label for="file-input" class="file-input-label">
+                    Choose File
+                </label>
+                <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.md,.csv,.json,.xlsx,.xls" />
+                
+                <div class="upload-progress" id="upload-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">Processing document...</div>
+                </div>
+            </div>
+
+            <!-- Preloaded Files Section -->
+            <div class="preloaded-section" id="preloaded-section" style="margin-top: 15px; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="font-size: 14px; font-weight: 600; color: #475569;">📂 Or use a preloaded file:</span>
+                    <button onclick="refreshPreloadedFiles()" style="background: none; border: none; cursor: pointer; font-size: 16px;" title="Refresh list">🔄</button>
+                </div>
+                <div id="preloaded-files-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                    <span style="color: #94a3b8; font-size: 13px;">Loading available files...</span>
+                </div>
+            </div>
+
+            <div class="query-section">
+                <label for="question">Your Question</label>
+                <textarea 
+                    id="question" 
+                    rows="4" 
+                    placeholder="Ask anything about the research paper..."></textarea>
+            </div>
+
+            <div class="options-row">
+                <div class="option-group">
+                    <label for="style">Explanation Style</label>
+                    <select id="style" class="form-select">
+                        <option value="Simple and Intuitive">Simple & Intuitive</option>
+                        <option value="Balanced" selected>Balanced</option>
+                        <option value="Detailed and Technical">Detailed & Technical</option>
+                        <option value="Academic">Academic</option>
+                    </select>
+                </div>
+                <div class="option-group">
+                    <label for="length">Response Length</label>
+                    <select id="length" class="form-select">
+                        <option value="Short (1 paragraph)">Short</option>
+                        <option value="Medium (2-3 paragraphs)" selected>Medium</option>
+                        <option value="Comprehensive">Comprehensive</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="button" class="btn-submit" id="submit-btn">
+                Get Answer
+            </button>
+
+            <div class="answer-section">
+                <label for="answer-display">AI Response</label>
+                <div class="loading-indicator" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing paper and generating answer...</p>
+                </div>
+                <div id="answer-display" style="display: none;">
+                    <p style="color: #9ca3af;">Your answer will appear here...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="preview-modal" id="preview-modal">
+        <div class="preview-content">
+            <div class="preview-header">
+                <h3 id="preview-title">Document Preview</h3>
+                <button class="preview-close" onclick="closePreview()">✕ Close</button>
+            </div>
+            <div class="preview-body" id="preview-body">
+                <!-- Preview content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script>
+      var question = document.getElementById('question');
+      var styleSelect = document.getElementById('style');
+      var lengthSelect = document.getElementById('length');
+      var answerDisplay = document.getElementById('answer-display');
+      var loadingIndicator = document.getElementById('loading');
+      var fileInput = document.getElementById('file-input');
+      var uploadSection = document.getElementById('upload-section');
+      var uploadProgress = document.getElementById('upload-progress');
+      var progressFill = document.getElementById('progress-fill');
+      var progressText = document.getElementById('progress-text');
+      var currentDocumentDiv = document.getElementById('current-document');
+      var docName = document.getElementById('doc-name');
+      var docStatus = document.getElementById('doc-status');
+      var docIcon = document.getElementById('doc-icon');
+      var deleteBtn = document.getElementById('delete-btn');
+      var previewBtn = document.getElementById('preview-btn');
+
+      // Helper function to update document display
+      function updateDocumentDisplay(filename, status) {
+          if (filename) {
+              currentDocumentDiv.classList.remove('no-document');
+              docIcon.textContent = '📄';
+              docName.textContent = filename;
+              docStatus.textContent = status;
+              deleteBtn.style.display = 'flex';
+              previewBtn.style.display = 'flex';
+          } else {
+              currentDocumentDiv.classList.add('no-document');
+              docIcon.textContent = '📭';
+              docName.textContent = 'No document uploaded';
+              docStatus.textContent = 'Ready to upload';
+              deleteBtn.style.display = 'none';
+              previewBtn.style.display = 'none';
+          }
+      }
+
+      // Preview document function
+      function previewDocument() {
+          const modal = document.getElementById('preview-modal');
+          const previewBody = document.getElementById('preview-body');
+          const previewTitle = document.getElementById('preview-title');
+          const filename = docName.textContent;
+          
+          previewTitle.textContent = `Preview: ${filename}`;
+          
+          // Clear previous content
+          previewBody.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="spinner"></div><p>Loading preview...</p></div>';
+          
+          // Show modal
+          modal.classList.add('active');
+          
+          // Load preview in iframe for all file types (server handles conversion)
+          previewBody.innerHTML = `<iframe class="preview-iframe" src="/preview_document"></iframe>`;
+      }
+
+      // Close preview modal
+      function closePreview() {
+          const modal = document.getElementById('preview-modal');
+          modal.classList.remove('active');
+      }
+
+      // Close modal when clicking outside
+      window.onclick = function(event) {
+          const modal = document.getElementById('preview-modal');
+          if (event.target === modal) {
+              closePreview();
+          }
+      }
+
+      // Escape HTML for safe display
+      function escapeHtml(text) {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+      }
+
+      // Delete document function
+      async function deleteDocument() {
+          const result = await Swal.fire({
+              title: 'Delete Document?',
+              text: 'This will remove the current document and clear all vectors from the database.',
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonColor: '#ef4444',
+              cancelButtonColor: '#6b7280',
+              confirmButtonText: 'Yes, delete it!',
+              cancelButtonText: 'Cancel'
+          });
+
+          if (result.isConfirmed) {
+              try {
+                  const response = await fetch('/delete_document', {
+                      method: 'POST'
+                  });
+
+                  const data = await response.json();
+
+                  if (data.success) {
+                      updateDocumentDisplay(null, 'Ready to upload');
+                      
+                      Swal.fire({
+                          icon: 'success',
+                          title: 'Deleted!',
+                          text: data.message,
+                          confirmButtonColor: '#667eea'
+                      });
+                  } else {
+                      throw new Error(data.error || 'Delete failed');
+                  }
+              } catch (error) {
+                  console.error('Delete error:', error);
+                  Swal.fire({
+                      icon: 'error',
+                      title: 'Delete Failed',
+                      text: error.message,
+                      confirmButtonColor: '#667eea'
+                  });
+              }
+          }
+      }
+
+      // Check document status on load
+      async function checkDocumentStatus() {
+          try {
+              const response = await fetch('/document_status', {
+                  method: 'GET',
+                  headers: {
+                      'Accept': 'application/json'
+                  },
+                  signal: AbortSignal.timeout(3000) // 3 second timeout
+              });
+              
+              if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}`);
+              }
+              
+              const data = await response.json();
+              if (data.filename && data.status === 'Ready') {
+                  updateDocumentDisplay(data.filename, data.status);
+              }
+          } catch (error) {
+              console.log('Document status check failed:', error.message);
+              // Don't block page load, just continue
+          }
+      }
+
+      // Run after DOM is fully loaded
+      if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', function() {
+              checkDocumentStatus();
+              loadPreloadedFiles();
+          });
+      } else {
+          checkDocumentStatus();
+          loadPreloadedFiles();
+      }
+
+      // Load preloaded files from server
+      async function loadPreloadedFiles() {
+          try {
+              const response = await fetch('/preloaded_files');
+              const data = await response.json();
+              const container = document.getElementById('preloaded-files-list');
+              
+              if (data.success && data.files && data.files.length > 0) {
+                  container.innerHTML = data.files.map(file => `
+                      <button onclick="loadPreloadedFile('${file.name}')" 
+                              style="background: #667eea; color: white; border: none; padding: 8px 14px; 
+                                     border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; 
+                                     align-items: center; gap: 6px; transition: all 0.2s;"
+                              onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-1px)'"
+                              onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)'">
+                          <span>📄</span>
+                          <span>${file.name}</span>
+                          <span style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${file.size_mb}MB</span>
+                      </button>
+                  `).join('');
+              } else {
+                  container.innerHTML = '<span style="color: #94a3b8; font-size: 13px;">No preloaded files available. Add PDFs to the "data" folder.</span>';
+              }
+          } catch (error) {
+              console.error('Failed to load preloaded files:', error);
+              document.getElementById('preloaded-files-list').innerHTML = 
+                  '<span style="color: #ef4444; font-size: 13px;">Failed to load files</span>';
+          }
+      }
+
+      function refreshPreloadedFiles() {
+          document.getElementById('preloaded-files-list').innerHTML = 
+              '<span style="color: #94a3b8; font-size: 13px;">Loading...</span>';
+          loadPreloadedFiles();
+      }
+
+      // Load a preloaded file
+      async function loadPreloadedFile(filename) {
+          if (typeof Swal === 'undefined') {
+              alert('Page still loading, please wait a moment.');
+              return;
+          }
+
+          // Show progress
+          const uploadProgress = document.getElementById('upload-progress');
+          const progressFill = document.getElementById('progress-fill');
+          const progressText = document.getElementById('progress-text');
+          
+          uploadProgress.classList.add('active');
+          progressFill.style.width = '10%';
+          progressText.textContent = 'Loading preloaded file...';
+
+          try {
+              progressFill.style.width = '30%';
+              progressText.textContent = 'Processing document...';
+
+              const response = await fetch('/load_preloaded_file', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ filename: filename })
+              });
+
+              progressFill.style.width = '90%';
+              const data = await response.json();
+
+              if (data.success) {
+                  progressFill.style.width = '100%';
+                  progressText.textContent = 'Complete!';
+                  
+                  updateDocumentDisplay(data.filename, 'Ready');
+                  
+                  setTimeout(() => {
+                      uploadProgress.classList.remove('active');
+                      progressFill.style.width = '0%';
+                  }, 1000);
+                  
+                  Swal.fire({
+                      icon: 'success',
+                      title: 'File Loaded!',
+                      html: `<b>${data.filename}</b> loaded in ${data.processing_time}s`,
+                      confirmButtonColor: '#667eea',
+                      timer: 3000,
+                      showConfirmButton: false
+                  });
+              } else {
+                  throw new Error(data.error || 'Failed to load file');
+              }
+          } catch (error) {
+              console.error('Load preloaded file error:', error);
+              uploadProgress.classList.remove('active');
+              progressFill.style.width = '0%';
+              
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Load Failed',
+                  text: error.message,
+                  confirmButtonColor: '#667eea'
+              });
+          }
+      }
+
+      // File input change handler
+      fileInput.addEventListener('change', function(e) {
+          const file = e.target.files[0];
+          console.log('File selected:', file);
+          if (file) {
+              uploadFile(file);
+          }
+      });
+
+      // Drag and drop handlers
+      uploadSection.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          uploadSection.classList.add('dragging');
+      });
+
+      uploadSection.addEventListener('dragleave', function(e) {
+          e.preventDefault();
+          uploadSection.classList.remove('dragging');
+      });
+
+      uploadSection.addEventListener('drop', function(e) {
+          e.preventDefault();
+          uploadSection.classList.remove('dragging');
+          
+          const file = e.dataTransfer.files[0];
+          if (file) {
+              uploadFile(file);
+          }
+      });
+
+      // Upload file function
+      async function uploadFile(file) {
+          // Wait for SweetAlert2 to load if needed
+          if (typeof Swal === 'undefined') {
+              console.error('SweetAlert2 not loaded yet');
+              alert('Page still loading, please wait a moment and try again.');
+              return;
+          }
+
+          // Validate file exists
+          if (!file) {
+              console.error('No file provided');
+              return;
+          }
+
+          // Display file size for debugging
+          const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+          console.log(`File: ${file.name}, Size: ${fileSizeMB}MB`);
+
+          // Validate file size (50MB)
+          if (file.size > 50 * 1024 * 1024) {
+              Swal.fire({
+                  icon: 'error',
+                  title: 'File Too Large',
+                  text: `File size is ${fileSizeMB}MB. Please upload a file smaller than 50MB.`,
+                  confirmButtonColor: '#667eea'
+              });
+              return;
+          }
+
+          // Validate minimum file size (not empty)
+          if (file.size === 0) {
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Empty File',
+                  text: 'The selected file is empty. Please choose a valid document.',
+                  confirmButtonColor: '#667eea'
+              });
+              return;
+          }
+
+          // Show progress
+          uploadProgress.classList.add('active');
+          progressFill.style.width = '10%';
+          progressText.textContent = 'Uploading document...';
+
+          console.log('Starting upload for:', file.name);
+
+          const formData = new FormData();
+          formData.append('file', file);
+
+          try {
+              // Add timeout for upload (10 minutes for large files)
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 min timeout
+
+              progressFill.style.width = '30%';
+              progressText.textContent = 'Uploading to server...';
+
+              console.log('Sending request to /upload_document');
+              
+              // Start progress polling for real-time updates
+              const progressInterval = setInterval(async () => {
+                  try {
+                      const statusResponse = await fetch('/document_status');
+                      const status = await statusResponse.json();
+                      if (status.status === 'Processing') {
+                          const progressPct = Math.min(status.progress || 30, 95);
+                          progressFill.style.width = progressPct + '%';
+                          progressText.textContent = `Processing document... ${progressPct}%`;
+                          console.log('Processing progress:', progressPct + '%');
+                      }
+                  } catch (err) {
+                      console.log('Progress poll error (normal):', err);
+                  }
+              }, 1000); // Poll every second
+
+              const response = await fetch('/upload_document', {
+                  method: 'POST',
+                  body: formData,
+                  signal: controller.signal
+              });
+
+              clearTimeout(timeoutId);
+              clearInterval(progressInterval); // Stop polling
+
+              if (!response.ok) {
+                  throw new Error(`Server error: ${response.status}`);
+              }
+
+              progressFill.style.width = '70%';
+              progressText.textContent = 'Processing and indexing...';
+
+              const data = await response.json();
+
+              progressFill.style.width = '100%';
+
+              if (data.success) {
+                  progressText.textContent = 'Complete! ✓';
+                  
+                  // Update current document display
+                  updateDocumentDisplay(data.filename, 'Ready');
+
+                  setTimeout(() => {
+                      uploadProgress.classList.remove('active');
+                      progressFill.style.width = '0%';
+                  }, 1500);
+
+                  Swal.fire({
+                      icon: 'success',
+                      title: 'Success!',
+                      text: data.message,
+                      confirmButtonColor: '#667eea',
+                      timer: 3000
+                  });
+              } else {
+                  throw new Error(data.error || 'Upload failed');
+              }
+          } catch (error) {
+              uploadProgress.classList.remove('active');
+              progressFill.style.width = '0%';
+              
+              let errorMsg = 'Failed to upload document. Please try again.';
+              if (error.name === 'AbortError') {
+                  errorMsg = 'Upload timed out after 10 minutes. The document is too large or complex. Please try: 1) A smaller file (< 20MB), 2) Split large PDFs into smaller parts, or 3) Check console (F12) for details.';
+              } else if (error.message) {
+                  errorMsg = error.message;
+              }
+              
+              console.error('Upload error details:', error);
+              
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Upload Failed',
+                  text: errorMsg,
+                  confirmButtonColor: '#667eea',
+                  footer: 'Check browser console (F12) for more details'
+              });
+              
+              console.error('Upload error:', error);
+          }
+
+          // Reset file input
+          fileInput.value = '';
+      }
+
+      // Configure marked for better rendering (when loaded)
+      if (typeof marked !== 'undefined') {
+          marked.setOptions({
+              breaks: true,
+              gfm: true
+          });
+      }
+
+      function formatAnswer(text) {
+          // Convert markdown-like formatting to HTML
+          let formatted = text;
+          
+          // Convert **bold** to <strong>
+          formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          
+          // Convert section headers
+          formatted = formatted.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+          formatted = formatted.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+          formatted = formatted.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+          
+          // Convert bullet points
+          formatted = formatted.replace(/^[•\-*] (.*?)$/gm, '<li>$1</li>');
+          formatted = formatted.replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>');
+          
+          // Convert numbered lists
+          formatted = formatted.replace(/^\d+\. (.*?)$/gm, '<li>$1</li>');
+          
+          // Convert paragraphs
+          formatted = formatted.split('\n\n').map(para => {
+              if (!para.trim().startsWith('<') && para.trim().length > 0) {
+                  return '<p>' + para.trim() + '</p>';
+              }
+              return para;
+          }).join('\n');
+          
+          return formatted;
+      }
+
+      // Submit button handler (vanilla JS, no jQuery)
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.addEventListener('click', async function (event) {
+          event.preventDefault();
+          const questionText = question.value.trim();
+          if (questionText === "") {
+              Swal.fire({
+                  icon: 'error',
+                  title: 'Oops!!!',
+                  text: "Please enter your query!",
+                  allowOutsideClick: false,
+                  allowEscapeKey: false,
+                  confirmButtonColor: "#667eea"
+              });
+          } else {
+              // Show loading indicator
+              loadingIndicator.classList.add('active');
+              answerDisplay.style.display = 'none';
+              submitBtn.disabled = true;
+              submitBtn.textContent = "Processing...";
+              
+              const formData = new FormData();
+              formData.append('question', questionText);
+                  formData.append('style', styleSelect.value);
+                  formData.append('length', lengthSelect.value);
+                  
+                  // Debug logging
+                  console.log('Sending request with:', {
+                      question: questionText,
+                      style: styleSelect.value,
+                      length: lengthSelect.value
+                  });
+                  
+                  fetch('/get_answer', {
+                      method: "POST",
+                      body: formData
+                  })
+                  .then(response => {
+                      if (!response.ok) {
+                          throw new Error('Network response was not ok');
+                      }
+                      return response.json();
+                  })
+                  .then(data => {
+                      // Hide loading and show answer
+                      loadingIndicator.classList.remove('active');
+                      answerDisplay.style.display = 'block';
+                      
+                      // Format and display the answer
+                      const formattedAnswer = formatAnswer(data.answer);
+                      answerDisplay.innerHTML = formattedAnswer;
+                      
+                      // Scroll to answer
+                      answerDisplay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                  })
+                  .catch(error => {
+                      loadingIndicator.classList.remove('active');
+                      answerDisplay.style.display = 'none';
+                      
+                      Swal.fire({
+                          icon: 'error',
+                          title: 'Oops!!!',
+                          text: "Sorry, couldn't generate your response now. Please try after some time.",
+                          confirmButtonColor: "#667eea"
+                      });
+                  })
+                  .finally(() => {
+                      submitBtn.disabled = false;
+                      submitBtn.textContent = "Get Answer";
+                  });
+              }
+          });
+  </script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Environment variables (contains API keys)
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads folder (user-uploaded files)
+uploads/*
+!uploads/.gitkeep
+
+# Data folder (may contain large files)
+data/*
+!data/.gitkeep
+
+# Logs
+*.log
+
+# Pinecone and model cache
+.pinecone/
+.cache/
