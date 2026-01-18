@@ -40,9 +40,14 @@ from QASystem.retrieval_and_generation import get_result
 from QASystem.ingestion import ingest_document, get_embedder
 from QASystem.utils import pinecone_config
 
-# Increase file size limits for large PDFs (50MB max)
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB in bytes
-MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # FastAPI body size limit
+# File size limits - optimized for reasonable processing times
+# Recommended limits based on processing time:
+#   - 5MB: ~1-2 minutes processing (good UX)
+#   - 10MB: ~3-5 minutes processing (acceptable)
+#   - 15MB: ~5-10 minutes processing (max recommended)
+MAX_FILE_SIZE = 15 * 1024 * 1024  # 15MB - balanced limit
+MAX_UPLOAD_SIZE = 15 * 1024 * 1024  # FastAPI body size limit
+RECOMMENDED_FILE_SIZE = 5 * 1024 * 1024  # 5MB - optimal for fast processing
 
 # Setup directories
 UPLOADS_DIR = Path("uploads")
@@ -195,6 +200,393 @@ async def load_preloaded_file(request: Request):
         import traceback
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+@app.get("/preview_file/{filename:path}")
+async def preview_any_file(filename: str, source: str = "auto"):
+    """
+    Preview any file from uploads or data folder without downloading.
+    
+    Args:
+        filename: Name of the file to preview
+        source: 'uploads', 'data', or 'auto' (checks both)
+    """
+    try:
+        file_path = None
+        
+        # Determine file location
+        if source == "uploads":
+            file_path = UPLOADS_DIR / filename
+        elif source == "data":
+            file_path = DATA_DIR / filename
+        else:  # auto - check both locations
+            if (UPLOADS_DIR / filename).exists():
+                file_path = UPLOADS_DIR / filename
+            elif (DATA_DIR / filename).exists():
+                file_path = DATA_DIR / filename
+        
+        if not file_path or not file_path.exists():
+            return Response(
+                content=generate_error_html("File Not Found", f"The file '{filename}' was not found."),
+                media_type="text/html",
+                status_code=404
+            )
+        
+        ext = file_path.suffix.lower()
+        
+        # Handle PDF - serve directly for inline viewing
+        if ext == ".pdf":
+            with open(file_path, "rb") as f:
+                file_content = f.read()
+            return Response(
+                content=file_content,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f"inline; filename=\"{filename}\"",
+                    "X-Content-Type-Options": "nosniff"
+                }
+            )
+        
+        # Handle DOCX/DOC - convert to HTML
+        elif ext in [".docx", ".doc"]:
+            return convert_docx_to_html(file_path, filename)
+        
+        # Handle Excel files - convert to HTML table
+        elif ext in [".xlsx", ".xls"]:
+            return convert_excel_to_html(file_path, filename)
+        
+        # Handle CSV - convert to HTML table
+        elif ext == ".csv":
+            return convert_csv_to_html(file_path, filename)
+        
+        # Handle JSON - format and display
+        elif ext == ".json":
+            return convert_json_to_html(file_path, filename)
+        
+        # Handle Markdown - convert to HTML
+        elif ext == ".md":
+            return convert_markdown_to_html(file_path, filename)
+        
+        # Handle TXT - display as formatted text
+        elif ext == ".txt":
+            return convert_text_to_html(file_path, filename)
+        
+        else:
+            return Response(
+                content=generate_error_html("Unsupported Format", f"Preview not available for '{ext}' files."),
+                media_type="text/html",
+                status_code=400
+            )
+            
+    except Exception as e:
+        print(f"[ERROR] Error previewing file {filename}: {e}")
+        import traceback
+        traceback.print_exc()
+        return Response(
+            content=generate_error_html("Preview Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
+
+# ============================================================================
+# DOCUMENT CONVERSION HELPER FUNCTIONS
+# ============================================================================
+
+def generate_preview_html_base(title: str, content: str, extra_styles: str = "") -> str:
+    """Generate base HTML template for previews"""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview: {title}</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #1f2937;
+            background: #f9fafb;
+        }}
+        .preview-container {{
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: white;
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }}
+        .preview-header {{
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            margin: -40px -20px 30px -20px;
+            border-radius: 0;
+        }}
+        .preview-header h1 {{
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+        .preview-header .file-icon {{ font-size: 24px; }}
+        .content {{ padding: 0 10px; }}
+        h1, h2, h3 {{ color: #1f2937; margin-top: 24px; margin-bottom: 12px; }}
+        p {{ margin-bottom: 16px; }}
+        code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 14px; }}
+        pre {{ 
+            background: #1e1e1e; 
+            color: #d4d4d4; 
+            padding: 20px; 
+            border-radius: 8px; 
+            overflow-x: auto;
+            margin: 16px 0;
+        }}
+        table {{ 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin: 20px 0;
+            font-size: 14px;
+        }}
+        th, td {{ 
+            border: 1px solid #e5e7eb; 
+            padding: 12px 16px; 
+            text-align: left; 
+        }}
+        th {{ 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }}
+        tr:nth-child(even) {{ background-color: #f9fafb; }}
+        tr:hover {{ background-color: #f3f4f6; }}
+        {extra_styles}
+    </style>
+</head>
+<body>
+    <div class="preview-container">
+        <div class="preview-header">
+            <h1><span class="file-icon">📄</span> {title}</h1>
+        </div>
+        <div class="content">
+            {content}
+        </div>
+    </div>
+</body>
+</html>"""
+
+def generate_error_html(title: str, message: str) -> str:
+    """Generate error HTML page"""
+    return generate_preview_html_base(
+        "Error",
+        f"""<div style="text-align: center; padding: 60px 20px;">
+            <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
+            <h2 style="color: #ef4444; margin-bottom: 16px;">{title}</h2>
+            <p style="color: #6b7280;">{message}</p>
+        </div>""",
+        ""
+    )
+
+def convert_docx_to_html(file_path: Path, filename: str) -> Response:
+    """Convert DOCX file to HTML for preview"""
+    try:
+        import docx
+        doc = docx.Document(file_path)
+        
+        content_parts = []
+        for para in doc.paragraphs:
+            if para.text.strip():
+                if para.style.name.startswith('Heading'):
+                    level = para.style.name.replace('Heading ', '')
+                    if level.isdigit() and int(level) <= 6:
+                        content_parts.append(f"<h{level}>{para.text}</h{level}>")
+                    else:
+                        content_parts.append(f"<h3>{para.text}</h3>")
+                else:
+                    content_parts.append(f"<p>{para.text}</p>")
+        
+        # Also extract tables if present
+        for table in doc.tables:
+            table_html = "<table>"
+            for i, row in enumerate(table.rows):
+                tag = "th" if i == 0 else "td"
+                table_html += "<tr>"
+                for cell in row.cells:
+                    table_html += f"<{tag}>{cell.text}</{tag}>"
+                table_html += "</tr>"
+            table_html += "</table>"
+            content_parts.append(table_html)
+        
+        content = "\n".join(content_parts)
+        html = generate_preview_html_base(filename, content)
+        return Response(content=html, media_type="text/html")
+        
+    except Exception as e:
+        return Response(
+            content=generate_error_html("DOCX Conversion Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
+
+def convert_excel_to_html(file_path: Path, filename: str) -> Response:
+    """Convert Excel file to HTML table for preview"""
+    try:
+        import pandas as pd
+        
+        # Read all sheets
+        excel_file = pd.ExcelFile(file_path)
+        content_parts = []
+        
+        for sheet_name in excel_file.sheet_names:
+            df = pd.read_excel(excel_file, sheet_name=sheet_name)
+            content_parts.append(f"<h2>📊 Sheet: {sheet_name}</h2>")
+            content_parts.append(f"<p style='color: #6b7280;'>{len(df)} rows × {len(df.columns)} columns</p>")
+            # Limit to first 500 rows for performance
+            if len(df) > 500:
+                content_parts.append("<p style='color: #f59e0b;'>⚠️ Showing first 500 rows</p>")
+                df = df.head(500)
+            content_parts.append(df.to_html(index=False, classes='preview-table', na_rep='—'))
+        
+        content = "\n".join(content_parts)
+        html = generate_preview_html_base(filename, content)
+        return Response(content=html, media_type="text/html")
+        
+    except Exception as e:
+        return Response(
+            content=generate_error_html("Excel Conversion Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
+
+def convert_csv_to_html(file_path: Path, filename: str) -> Response:
+    """Convert CSV file to HTML table for preview"""
+    try:
+        import pandas as pd
+        df = pd.read_csv(file_path)
+        
+        content_parts = [f"<p style='color: #6b7280;'>{len(df)} rows × {len(df.columns)} columns</p>"]
+        
+        # Limit to first 500 rows for performance
+        if len(df) > 500:
+            content_parts.append("<p style='color: #f59e0b;'>⚠️ Showing first 500 rows</p>")
+            df = df.head(500)
+        
+        content_parts.append(df.to_html(index=False, classes='preview-table', na_rep='—'))
+        content = "\n".join(content_parts)
+        html = generate_preview_html_base(filename, content)
+        return Response(content=html, media_type="text/html")
+        
+    except Exception as e:
+        return Response(
+            content=generate_error_html("CSV Conversion Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
+
+def convert_json_to_html(file_path: Path, filename: str) -> Response:
+    """Convert JSON file to formatted HTML for preview"""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            json_data = json.load(f)
+        
+        formatted_json = json.dumps(json_data, indent=2, ensure_ascii=False)
+        
+        # Syntax highlighting for JSON
+        import html
+        formatted_json = html.escape(formatted_json)
+        
+        content = f"<pre>{formatted_json}</pre>"
+        extra_styles = """
+            pre { 
+                background: #1e1e1e !important; 
+                color: #ce9178 !important;
+                font-family: 'Fira Code', 'Consolas', monospace;
+                font-size: 14px;
+                line-height: 1.5;
+            }
+        """
+        html_content = generate_preview_html_base(filename, content, extra_styles)
+        return Response(content=html_content, media_type="text/html")
+        
+    except Exception as e:
+        return Response(
+            content=generate_error_html("JSON Parse Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
+
+def convert_markdown_to_html(file_path: Path, filename: str) -> Response:
+    """Convert Markdown file to HTML for preview"""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            md_content = f.read()
+        
+        # Try using markdown library if available
+        try:
+            import markdown
+            html_content = markdown.markdown(
+                md_content,
+                extensions=['tables', 'fenced_code', 'codehilite', 'toc']
+            )
+        except ImportError:
+            # Fallback: basic markdown-like rendering
+            import html
+            html_content = html.escape(md_content)
+            html_content = f"<pre style='white-space: pre-wrap; font-family: inherit;'>{html_content}</pre>"
+        
+        extra_styles = """
+            .content img { max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0; }
+            .content blockquote { 
+                border-left: 4px solid #667eea; 
+                padding-left: 20px; 
+                margin: 16px 0;
+                color: #6b7280;
+                font-style: italic;
+            }
+            .content ul, .content ol { margin: 16px 0; padding-left: 30px; }
+            .content li { margin: 8px 0; }
+        """
+        html_output = generate_preview_html_base(filename, html_content, extra_styles)
+        return Response(content=html_output, media_type="text/html")
+        
+    except Exception as e:
+        return Response(
+            content=generate_error_html("Markdown Conversion Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
+
+def convert_text_to_html(file_path: Path, filename: str) -> Response:
+    """Convert text file to HTML for preview"""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            txt_content = f.read()
+        
+        import html
+        txt_content = html.escape(txt_content)
+        
+        # Count lines and words
+        lines = txt_content.count('\n') + 1
+        words = len(txt_content.split())
+        
+        content = f"""
+            <p style='color: #6b7280; margin-bottom: 20px;'>{lines} lines • {words} words</p>
+            <pre style='white-space: pre-wrap; background: #f9fafb; padding: 20px; border-radius: 8px; 
+                        font-family: "Fira Code", Consolas, monospace; font-size: 14px; line-height: 1.6;
+                        border: 1px solid #e5e7eb;'>{txt_content}</pre>
+        """
+        html_output = generate_preview_html_base(filename, content)
+        return Response(content=html_output, media_type="text/html")
+        
+    except Exception as e:
+        return Response(
+            content=generate_error_html("Text File Error", str(e)),
+            media_type="text/html",
+            status_code=500
+        )
 
 @app.get("/test")
 async def test(request: Request):
@@ -403,157 +795,19 @@ async def document_status():
 
 @app.get("/preview_document")
 async def preview_document():
-    """Serve the uploaded document for preview with format conversion"""
-    try:
-        if current_document["filename"] is None:
-            return Response(content="No document uploaded", status_code=404)
-        
-        file_path = UPLOADS_DIR / current_document["filename"]
-        if not file_path.exists():
-            return Response(content="Document file not found", status_code=404)
-        
-        ext = file_path.suffix.lower()
-        
-        # Handle PDF - serve directly
-        if ext == ".pdf":
-            with open(file_path, "rb") as f:
-                file_content = f.read()
-            return Response(
-                content=file_content,
-                media_type="application/pdf",
-                headers={"Content-Disposition": f"inline; filename={current_document['filename']}"}
-            )
-        
-        # Handle DOCX/DOC - convert to HTML
-        elif ext in [".docx", ".doc"]:
-            try:
-                import docx
-                doc = docx.Document(file_path)
-                html_content = "<html><head><meta charset='utf-8'><style>"
-                html_content += "body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }"
-                html_content += "h1, h2, h3 { color: #333; margin-top: 24px; }"
-                html_content += "p { margin-bottom: 12px; }</style></head><body>"
-                
-                for para in doc.paragraphs:
-                    if para.text.strip():
-                        # Check if it's a heading
-                        if para.style.name.startswith('Heading'):
-                            level = para.style.name.replace('Heading ', '')
-                            if level.isdigit():
-                                html_content += f"<h{level}>{para.text}</h{level}>"
-                            else:
-                                html_content += f"<h3>{para.text}</h3>"
-                        else:
-                            html_content += f"<p>{para.text}</p>"
-                
-                html_content += "</body></html>"
-                return Response(content=html_content, media_type="text/html")
-            except Exception as e:
-                print(f"Error converting DOCX: {e}")
-                return Response(content=f"Error converting document: {str(e)}", status_code=500)
-        
-        # Handle Excel files - convert to HTML table
-        elif ext in [".xlsx", ".xls"]:
-            try:
-                import pandas as pd
-                df = pd.read_excel(file_path)
-                html_content = "<html><head><meta charset='utf-8'><style>"
-                html_content += "body { font-family: Arial, sans-serif; padding: 20px; }"
-                html_content += "table { border-collapse: collapse; width: 100%; margin-top: 20px; }"
-                html_content += "th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }"
-                html_content += "th { background-color: #667eea; color: white; font-weight: 600; }"
-                html_content += "tr:nth-child(even) { background-color: #f9fafb; }"
-                html_content += "tr:hover { background-color: #f3f4f6; }"
-                html_content += "</style></head><body>"
-                html_content += f"<h2>Preview: {current_document['filename']}</h2>"
-                html_content += df.to_html(index=False, classes='preview-table')
-                html_content += "</body></html>"
-                return Response(content=html_content, media_type="text/html")
-            except Exception as e:
-                print(f"Error converting Excel: {e}")
-                return Response(content=f"Error converting spreadsheet: {str(e)}", status_code=500)
-        
-        # Handle CSV - convert to HTML table
-        elif ext == ".csv":
-            try:
-                import pandas as pd
-                df = pd.read_csv(file_path)
-                html_content = "<html><head><meta charset='utf-8'><style>"
-                html_content += "body { font-family: Arial, sans-serif; padding: 20px; }"
-                html_content += "table { border-collapse: collapse; width: 100%; margin-top: 20px; }"
-                html_content += "th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }"
-                html_content += "th { background-color: #667eea; color: white; font-weight: 600; }"
-                html_content += "tr:nth-child(even) { background-color: #f9fafb; }"
-                html_content += "tr:hover { background-color: #f3f4f6; }"
-                html_content += "</style></head><body>"
-                html_content += f"<h2>Preview: {current_document['filename']}</h2>"
-                html_content += df.to_html(index=False, classes='preview-table')
-                html_content += "</body></html>"
-                return Response(content=html_content, media_type="text/html")
-            except Exception as e:
-                print(f"Error converting CSV: {e}")
-                return Response(content=f"Error converting CSV: {str(e)}", status_code=500)
-        
-        # Handle JSON - format and display
-        elif ext == ".json":
-            try:
-                import json
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    json_data = json.load(f)
-                formatted_json = json.dumps(json_data, indent=2)
-                html_content = "<html><head><meta charset='utf-8'><style>"
-                html_content += "body { font-family: 'Courier New', monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }"
-                html_content += "pre { white-space: pre-wrap; word-wrap: break-word; }"
-                html_content += "</style></head><body>"
-                html_content += f"<pre>{formatted_json}</pre>"
-                html_content += "</body></html>"
-                return Response(content=html_content, media_type="text/html")
-            except Exception as e:
-                print(f"Error formatting JSON: {e}")
-                return Response(content=f"Error formatting JSON: {str(e)}", status_code=500)
-        
-        # Handle Markdown - convert to HTML
-        elif ext == ".md":
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    md_content = f.read()
-                # Simple markdown to HTML conversion
-                html_content = "<html><head><meta charset='utf-8'><style>"
-                html_content += "body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }"
-                html_content += "h1, h2, h3 { color: #333; margin-top: 24px; }"
-                html_content += "code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; }"
-                html_content += "pre { background: #f3f4f6; padding: 12px; border-radius: 8px; overflow-x: auto; }"
-                html_content += "</style></head><body>"
-                html_content += f"<pre style='white-space: pre-wrap; font-family: inherit;'>{md_content}</pre>"
-                html_content += "</body></html>"
-                return Response(content=html_content, media_type="text/html")
-            except Exception as e:
-                print(f"Error converting Markdown: {e}")
-                return Response(content=f"Error converting Markdown: {str(e)}", status_code=500)
-        
-        # Handle TXT - display as plain text
-        elif ext == ".txt":
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    txt_content = f.read()
-                html_content = "<html><head><meta charset='utf-8'><style>"
-                html_content += "body { font-family: 'Courier New', monospace; padding: 20px; white-space: pre-wrap; }"
-                html_content += "</style></head><body>"
-                html_content += txt_content
-                html_content += "</body></html>"
-                return Response(content=html_content, media_type="text/html")
-            except Exception as e:
-                print(f"Error reading text file: {e}")
-                return Response(content=f"Error reading file: {str(e)}", status_code=500)
-        
-        else:
-            return Response(content="Preview not available for this file type", status_code=400)
-            
-    except Exception as e:
-        print(f"[ERROR] Error previewing document: {e}")
-        import traceback
-        traceback.print_exc()
-        return Response(content=f"Error: {str(e)}", status_code=500)
+    """
+    Serve the current uploaded document for preview.
+    Redirects to the new unified preview endpoint.
+    """
+    if current_document["filename"] is None:
+        return Response(
+            content=generate_error_html("No Document", "No document has been uploaded yet."),
+            media_type="text/html",
+            status_code=404
+        )
+    
+    # Use the new unified preview endpoint
+    return await preview_any_file(current_document["filename"], source="uploads")
 
 @app.post("/delete_document")
 async def delete_document():

@@ -618,7 +618,7 @@
             <div class="upload-section" id="upload-section">
                 <div class="upload-icon">📤</div>
                 <div class="upload-text">Upload Your Document</div>
-                <div class="upload-hint">Supports PDF, DOCX, DOC, TXT, MD, CSV, JSON, XLSX, XLS (Max 50MB)</div>
+                <div class="upload-hint">Supports PDF, DOCX, DOC, TXT, MD, CSV, JSON, XLSX, XLS (Max 15MB, recommended &lt;5MB for fast processing)</div>
                 <label for="file-input" class="file-input-label">
                     Choose File
                 </label>
@@ -740,29 +740,59 @@
           }
       }
 
-      // Preview document function
+      // Preview document function - for uploaded documents
       function previewDocument() {
+          const filename = docName.textContent;
+          if (!filename || filename === 'No document uploaded') {
+              Swal.fire({
+                  icon: 'warning',
+                  title: 'No Document',
+                  text: 'Please upload a document first.',
+                  confirmButtonColor: '#667eea'
+              });
+              return;
+          }
+          openPreviewModal(filename, 'uploads');
+      }
+
+      // Preview preloaded file function - for files in data folder
+      function previewPreloadedFile(filename) {
+          openPreviewModal(filename, 'data');
+      }
+
+      // Unified preview modal function
+      function openPreviewModal(filename, source) {
           const modal = document.getElementById('preview-modal');
           const previewBody = document.getElementById('preview-body');
           const previewTitle = document.getElementById('preview-title');
-          const filename = docName.textContent;
           
           previewTitle.textContent = `Preview: ${filename}`;
           
-          // Clear previous content
-          previewBody.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="spinner"></div><p>Loading preview...</p></div>';
+          // Show loading state
+          previewBody.innerHTML = `
+              <div style="text-align: center; padding: 60px 20px;">
+                  <div class="spinner"></div>
+                  <p style="margin-top: 20px; color: #6b7280;">Loading preview...</p>
+              </div>
+          `;
           
           // Show modal
           modal.classList.add('active');
           
-          // Load preview in iframe for all file types (server handles conversion)
-          previewBody.innerHTML = `<iframe class="preview-iframe" src="/preview_document"></iframe>`;
+          // Build preview URL with source parameter
+          const previewUrl = `/preview_file/${encodeURIComponent(filename)}?source=${source}`;
+          
+          // Load preview in iframe
+          previewBody.innerHTML = `<iframe class="preview-iframe" src="${previewUrl}"></iframe>`;
       }
 
       // Close preview modal
       function closePreview() {
           const modal = document.getElementById('preview-modal');
+          const previewBody = document.getElementById('preview-body');
           modal.classList.remove('active');
+          // Clear iframe to stop any ongoing loads
+          previewBody.innerHTML = '';
       }
 
       // Close modal when clicking outside
@@ -870,16 +900,28 @@
               
               if (data.success && data.files && data.files.length > 0) {
                   container.innerHTML = data.files.map(file => `
-                      <button onclick="loadPreloadedFile('${file.name}')" 
-                              style="background: #667eea; color: white; border: none; padding: 8px 14px; 
-                                     border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; 
-                                     align-items: center; gap: 6px; transition: all 0.2s;"
-                              onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-1px)'"
-                              onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)'">
-                          <span>📄</span>
-                          <span>${file.name}</span>
-                          <span style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${file.size_mb}MB</span>
-                      </button>
+                      <div style="display: flex; gap: 4px; align-items: center;">
+                          <button onclick="previewPreloadedFile('${file.name}')" 
+                                  style="background: #3b82f6; color: white; border: none; padding: 8px 12px; 
+                                         border-radius: 6px 0 0 6px; font-size: 13px; cursor: pointer; display: flex; 
+                                         align-items: center; gap: 4px; transition: all 0.2s;"
+                                  onmouseover="this.style.background='#2563eb'"
+                                  onmouseout="this.style.background='#3b82f6'"
+                                  title="Preview this file">
+                              👁️
+                          </button>
+                          <button onclick="loadPreloadedFile('${file.name}')" 
+                                  style="background: #667eea; color: white; border: none; padding: 8px 14px; 
+                                         border-radius: 0 6px 6px 0; font-size: 13px; cursor: pointer; display: flex; 
+                                         align-items: center; gap: 6px; transition: all 0.2s;"
+                                  onmouseover="this.style.background='#5568d3'; this.style.transform='translateY(-1px)'"
+                                  onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)'"
+                                  title="Load this file for Q&A">
+                              <span>📄</span>
+                              <span>${file.name}</span>
+                              <span style="background: rgba(255,255,255,0.2); padding: 2px 6px; border-radius: 4px; font-size: 11px;">${file.size_mb}MB</span>
+                          </button>
+                      </div>
                   `).join('');
               } else {
                   container.innerHTML = '<span style="color: #94a3b8; font-size: 13px;">No preloaded files available. Add PDFs to the "data" folder.</span>';
@@ -1011,15 +1053,31 @@
           const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
           console.log(`File: ${file.name}, Size: ${fileSizeMB}MB`);
 
-          // Validate file size (50MB)
-          if (file.size > 50 * 1024 * 1024) {
+          // Validate file size (15MB max)
+          if (file.size > 15 * 1024 * 1024) {
               Swal.fire({
                   icon: 'error',
                   title: 'File Too Large',
-                  text: `File size is ${fileSizeMB}MB. Please upload a file smaller than 50MB.`,
+                  text: `File size is ${fileSizeMB}MB. Please upload a file smaller than 15MB for reasonable processing times.`,
                   confirmButtonColor: '#667eea'
               });
               return;
+          }
+
+          // Warn if file is large (over 5MB)
+          if (file.size > 5 * 1024 * 1024) {
+              const result = await Swal.fire({
+                  icon: 'warning',
+                  title: 'Large File Warning',
+                  html: `<p>File size is <b>${fileSizeMB}MB</b>.</p><p>Processing may take <b>3-5 minutes</b>.</p><p>For faster results, use files under 5MB.</p>`,
+                  showCancelButton: true,
+                  confirmButtonText: 'Continue Anyway',
+                  cancelButtonText: 'Cancel',
+                  confirmButtonColor: '#667eea'
+              });
+              if (!result.isConfirmed) {
+                  return;
+              }
           }
 
           // Validate minimum file size (not empty)
