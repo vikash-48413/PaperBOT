@@ -2,9 +2,7 @@
 include README.md
 include LICENSE
 include CHANGELOG.md
-include FEATURES.md
-include INSTALLATION.md
-include QUICKSTART.md
+include DEPLOYMENT.md
 include requirements.txt
 include requirements-dev.txt
 include .env.example
@@ -12,12 +10,10 @@ include .env.example
 # Include templates
 recursive-include templates *.html *.css *.js
 
-# Include test files
-recursive-include tests *.py
-
 # Exclude unnecessary files
 global-exclude __pycache__
 global-exclude *.py[co]
 global-exclude .DS_Store
 global-exclude *.swp
 global-exclude *.swo
+global-exclude *.egg-info

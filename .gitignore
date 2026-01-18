@@ -33,11 +33,10 @@ Thumbs.db
 uploads/*
 !uploads/.gitkeep
 
-# Data folder - keep preloaded files
-# Only ignore large files, keep PDFs for demo
+# Data folder - keep preloaded PDFs
+data/*
+!data/.gitkeep
 !data/*.pdf
-!data/*.txt
-!data/*.md
 
 # Logs
 *.log
@@ -45,3 +44,4 @@ uploads/*
 # Pinecone and model cache
 .pinecone/
 .cache/
+.huggingface/
