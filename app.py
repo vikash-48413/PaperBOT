@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 PaperBOT - AI-Powered Research Paper Assistant
-Main FastAPI application with support for large file uploads (up to 50MB)
+Main FastAPI application with support for large file uploads (up to 15MB)
 Optimized for fast processing of 5MB files
+
+API Documentation available at /docs (Swagger UI)
 """
 
 # Fix Windows console encoding FIRST before any other imports
@@ -25,7 +27,7 @@ load_dotenv()
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 os.environ['PINECONE_API_KEY'] = PINECONE_API_KEY if PINECONE_API_KEY else ""
 
-from fastapi import FastAPI, Request, Form, Response, File, UploadFile, HTTPException
+from fastapi import FastAPI, Request, Form, Response, File, UploadFile, HTTPException, Depends
 from fastapi.templating import Jinja2Templates
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -36,9 +38,12 @@ from pathlib import Path
 import tempfile
 import asyncio
 import threading
+import time
 from QASystem.retrieval_and_generation import get_result
 from QASystem.ingestion import ingest_document, get_embedder
 from QASystem.utils import pinecone_config
+from QASystem.logger import log_info, log_error, log_warning, log_upload, log_query, log_request
+from QASystem.rate_limiter import check_rate_limit, get_client_ip, rate_limiter
 
 # File size limits - optimized for reasonable processing times
 # Recommended limits based on processing time:
@@ -61,13 +66,34 @@ current_document = {"filename": None, "status": "No document uploaded", "progres
 # Model warmup status
 model_ready = {"status": False, "message": "Loading..."}
 
-print("[INFO] Imports loaded successfully")
+log_info("Imports loaded successfully", "startup")
 
 # Creating the app with proper configuration for large file uploads
 app = FastAPI(
-    title="PaperBOT",
-    description="AI-Powered Research Paper Assistant",
-    version="2.0",
+    title="PaperBOT API",
+    description="""
+## 🤖 PaperBOT - AI-Powered Research Paper Assistant
+
+Upload documents and ask questions powered by RAG + Google Gemini AI.
+
+### Features:
+- 📄 Multi-format document support (PDF, DOCX, TXT, CSV, JSON, Excel)
+- 🔍 Semantic search with Pinecone vector database
+- 🤖 AI-powered answers with Google Gemini
+- 📊 Customizable response styles and lengths
+
+### Rate Limits:
+- 30 requests per minute
+- 500 requests per hour
+    """,
+    version="2.1.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "Documents", "description": "Upload and manage documents"},
+        {"name": "Q&A", "description": "Ask questions about documents"},
+        {"name": "Status", "description": "System status endpoints"},
+    ]
 )
 
 def warmup_model_background():
@@ -847,32 +873,76 @@ async def delete_document():
             "message": f"Document deleted successfully" if filename == "Unknown" else f"Document '{filename}' deleted successfully"
         }
     except Exception as e:
-        print(f"[ERROR] Error deleting document: {e}")
-        import traceback
-        traceback.print_exc()
+        log_error(f"Error deleting document: {e}", "delete", exc_info=True)
         return {"success": False, "error": str(e)}
 
-@app.post("/get_answer")
+@app.post("/get_answer", tags=["Q&A"])
 async def get_answer(
     request: Request, 
-    question: str = Form(...),
-    style: str = Form("Detailed and Technical"),
-    length: str = Form("Medium (2-3 paragraphs)")
+    question: str = Form(..., description="Your question about the document"),
+    style: str = Form("Detailed and Technical", description="Response style"),
+    length: str = Form("Medium (2-3 paragraphs)", description="Response length"),
+    _rate_limit: bool = Depends(check_rate_limit)
 ):
+    """
+    Ask a question about the uploaded document.
+    
+    - **question**: Your question in natural language
+    - **style**: Simple, Balanced, or Technical
+    - **length**: Short, Medium, or Comprehensive
+    
+    Returns AI-generated answer based on document content.
+    """
+    start_time = time.time()
+    
     # Check if document is uploaded
     if current_document["status"] != "Ready":
         error_msg = "Please upload a document first before asking questions."
+        log_warning(f"Query without document: {question[:50]}", "query")
         response_data = jsonable_encoder(json.dumps({"answer": error_msg}))
         return Response(response_data)
     
-    print(f"Question: {question}")
-    print(f"Style: {style}, Length: {length}")
-    print(f"Current Document: {current_document['filename']}")
+    log_info(f"Question: {question[:100]}...", "query")
+    log_info(f"Style: {style}, Length: {length}", "query")
     
-    answer = get_result(question, style, length)
-    response_data = jsonable_encoder(json.dumps({"answer": answer}))
-    res = Response(response_data)
-    return res
+    try:
+        answer = get_result(question, style, length)
+        duration_ms = (time.time() - start_time) * 1000
+        log_query(question, duration_ms, success=True)
+        response_data = jsonable_encoder(json.dumps({"answer": answer}))
+        return Response(response_data)
+    except Exception as e:
+        duration_ms = (time.time() - start_time) * 1000
+        log_query(question, duration_ms, success=False)
+        log_error(f"Query error: {e}", "query", exc_info=True)
+        response_data = jsonable_encoder(json.dumps({"answer": f"Error: {str(e)}"}))
+        return Response(response_data)
+
+
+@app.get("/rate_limit_status", tags=["Status"])
+async def rate_limit_status(request: Request):
+    """
+    Get current rate limit status for your IP.
+    
+    Returns remaining requests for minute and hour windows.
+    """
+    ip = get_client_ip(request)
+    return rate_limiter.get_remaining(ip)
+
+
+@app.get("/health", tags=["Status"])
+async def health_check():
+    """
+    Health check endpoint for monitoring.
+    
+    Returns system health status.
+    """
+    return {
+        "status": "healthy",
+        "model_ready": model_ready["status"],
+        "document_loaded": current_document["status"] == "Ready",
+        "version": "2.1.0"
+    }
     
 if __name__ == "__main__":
     # Note: UTF-8 encoding is already configured at the top of the file
@@ -880,11 +950,12 @@ if __name__ == "__main__":
     # Detect port: Use 7860 for Hugging Face Spaces, 8000 for others
     port = int(os.getenv("PORT", 7860 if os.getenv("SPACE_ID") else 8000))
     
-    print("[STARTUP] Starting PaperBOT server...")
-    print(f"[CONFIG] Max file size: {MAX_FILE_SIZE / (1024*1024):.0f}MB")
-    print("[CONFIG] Upload timeout: 10 minutes")
-    print(f"[CONFIG] Request size limit: {MAX_UPLOAD_SIZE / (1024*1024):.0f}MB")
-    print(f"[INFO] Server will be available at http://localhost:{port}")
+    log_info("Starting PaperBOT server...", "startup")
+    log_info(f"Max file size: {MAX_FILE_SIZE / (1024*1024):.0f}MB", "config")
+    log_info("Upload timeout: 10 minutes", "config")
+    log_info(f"Request size limit: {MAX_UPLOAD_SIZE / (1024*1024):.0f}MB", "config")
+    log_info(f"Server will be available at http://localhost:{port}", "startup")
+    log_info("API docs at /docs, ReDoc at /redoc", "startup")
     
     # Increase timeout for large file processing and set size limits
     uvicorn.run(
