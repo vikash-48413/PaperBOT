@@ -1,6 +1,40 @@
-# CHANGELOG
+# Changelog
 
-## Version 2.0.0 - Major Upgrade (January 2026)
+All notable changes to PaperBOT are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [2.1.0] - January 2025
+
+### Added
+- **Document Preview** - In-browser preview for all document types
+- **Preloaded Files Preview** - Preview button for files in data/ folder
+- **File Size Warnings** - Warning dialog for files over 5MB
+- **Model Pre-warming** - Embedding model loads on server startup
+- **Curated Fallback Responses** - Beautiful output when API quota exceeded
+- **Retry Logic** - Exponential backoff for transient API failures
+
+### Changed
+- Reduced max file size from 50MB to 15MB for better performance
+- Optimized chunk size to 300 words (from 200)
+- Improved error messages with troubleshooting tips
+- Enhanced UI with Bootstrap 5
+
+### Fixed
+- Pinecone 40KB metadata limit error (chunks now enforced to 8KB)
+- Google API 429 quota errors now handled gracefully
+- Memory leaks during batch processing
+- Encoding issues with special characters
+
+### Security
+- API keys stored only in .env (not tracked by git)
+- Added comprehensive .gitignore
+
+---
+
+## [2.0.0] - January 2025 (Major Upgrade)
 
 ### 🎉 New Features
 
