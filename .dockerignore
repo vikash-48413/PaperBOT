@@ -1,0 +1,55 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+*.egg
+
+# Virtual Environment
+venv
+env
+ENV
+
+# Environment files (use docker env vars instead)
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Cache
+.cache
+.pytest_cache
+.mypy_cache
+
+# Uploads (will be created at runtime)
+uploads/*
+!uploads/.gitkeep
+
+# Documentation (not needed in container)
+*.md
+!README.md
+LICENSE
+
+# Development files
+requirements-dev.txt
+test_*.py

@@ -357,10 +357,37 @@ PaperBOT/
 ├── uploads/               # User uploads (gitignored)
 ├── requirements.txt       # Python dependencies
 ├── .env.example           # Environment template
+├── Dockerfile             # Docker container config
+├── docker-compose.yml     # Docker Compose setup
 ├── start.bat              # Windows launcher
 ├── start.sh               # Linux/Mac launcher
 └── LICENSE                # MIT License
 ```
+
+---
+
+## 🚀 Deployment
+
+### Quick Deploy with Docker
+
+```bash
+# Build and run
+docker build -t paperbot .
+docker run -d -p 8000:8000 \
+  -e PINECONE_API_KEY=your_key \
+  -e GOOGLE_API_KEY=your_key \
+  paperbot
+```
+
+### Deploy to Cloud (Free Options)
+
+| Platform | Command / Link | Free Tier |
+|----------|----------------|-----------|
+| **Railway** | [railway.app](https://railway.app) → Deploy from GitHub | $5/month credit |
+| **Render** | [render.com](https://render.com) → New Web Service | 750 hrs/month |
+| **Docker** | `docker-compose up -d` | Local only |
+
+📖 **Full deployment guide**: See [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ---
 

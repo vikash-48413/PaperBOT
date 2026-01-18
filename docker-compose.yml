@@ -1,0 +1,32 @@
+# ================================
+# PaperBOT - Docker Compose
+# ================================
+# Usage:
+#   docker-compose up -d          # Start in background
+#   docker-compose logs -f        # View logs
+#   docker-compose down           # Stop
+
+version: '3.8'
+
+services:
+  paperbot:
+    build: .
+    container_name: paperbot
+    ports:
+      - "8000:8000"
+    environment:
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      # Persist uploaded files (optional)
+      - ./uploads:/app/uploads
+      # Persist preloaded data
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/model_status')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
