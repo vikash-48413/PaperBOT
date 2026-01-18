@@ -877,17 +877,20 @@ async def get_answer(
 if __name__ == "__main__":
     # Note: UTF-8 encoding is already configured at the top of the file
     
+    # Detect port: Use 7860 for Hugging Face Spaces, 8000 for others
+    port = int(os.getenv("PORT", 7860 if os.getenv("SPACE_ID") else 8000))
+    
     print("[STARTUP] Starting PaperBOT server...")
     print(f"[CONFIG] Max file size: {MAX_FILE_SIZE / (1024*1024):.0f}MB")
     print("[CONFIG] Upload timeout: 10 minutes")
     print(f"[CONFIG] Request size limit: {MAX_UPLOAD_SIZE / (1024*1024):.0f}MB")
-    print("[INFO] Server will be available at http://localhost:8000")
+    print(f"[INFO] Server will be available at http://localhost:{port}")
     
     # Increase timeout for large file processing and set size limits
     uvicorn.run(
         "app:app", 
         host="0.0.0.0", 
-        port=8000, 
+        port=port, 
         reload=False, 
         timeout_keep_alive=600,  # 10 minutes keep-alive
         limit_concurrency=10,  # Limit concurrent connections
