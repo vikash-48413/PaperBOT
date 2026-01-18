@@ -15,11 +15,19 @@ try:
 except ImportError:
     MODEL_DIMENSION = 384  # Default to fast model dimension
 
-# setting env variable
-os.environ['PINECONE_API_KEY'] = PINECONE_API_KEY
-os.environ['HF_TOKEN'] = HF_TOKEN
+# setting env variable (only if they exist)
+if PINECONE_API_KEY:
+    os.environ['PINECONE_API_KEY'] = PINECONE_API_KEY
+    print("Pinecone API key set successfully.")
+else:
+    print("WARNING: PINECONE_API_KEY not set!")
 
-print("Pinecone API key set successfully.")
+if HF_TOKEN:
+    os.environ['HF_TOKEN'] = HF_TOKEN
+    print("HF_TOKEN set successfully.")
+else:
+    print("INFO: HF_TOKEN not set (optional for most models)")
+
 print(f"Using embedding dimension: {MODEL_DIMENSION}")
 
 def pinecone_config(namespace="default"):
