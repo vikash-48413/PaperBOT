@@ -33,9 +33,11 @@ Thumbs.db
 uploads/*
 !uploads/.gitkeep
 
-# Data folder (may contain large files)
-data/*
-!data/.gitkeep
+# Data folder - keep preloaded files
+# Only ignore large files, keep PDFs for demo
+!data/*.pdf
+!data/*.txt
+!data/*.md
 
 # Logs
 *.log
