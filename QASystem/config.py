@@ -24,7 +24,10 @@ EMBEDDING_MODELS = {
 
 # Current model selection - Keep "quality" to match existing Pinecone index (1024 dims)
 # NOTE: Changing model requires recreating Pinecone index with matching dimension
-CURRENT_MODEL = "quality"  # Must match Pinecone index dimension (1024)
+# For Hugging Face Spaces, use environment variable to override
+import os
+_default_model = "quality"  # Must match Pinecone index dimension (1024)
+CURRENT_MODEL = os.getenv("EMBEDDING_MODEL", _default_model)
 
 # Document Processing Settings (Optimized for speed)
 CHUNK_SETTINGS = {

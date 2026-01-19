@@ -66,6 +66,11 @@ current_document = {"filename": None, "status": "No document uploaded", "progres
 # Model warmup status
 model_ready = {"status": False, "message": "Loading..."}
 
+# Detect Hugging Face Spaces environment
+IS_HF_SPACES = os.getenv("SPACE_ID") is not None
+if IS_HF_SPACES:
+    print("[INFO] Running on Hugging Face Spaces")
+
 log_info("Imports loaded successfully", "startup")
 
 # Creating the app with proper configuration for large file uploads
@@ -116,6 +121,12 @@ def warmup_model_background():
 async def startup_event():
     """Pre-load models on startup for faster first upload"""
     print("[STARTUP] PaperBOT server starting...")
+    
+    # On HF Spaces, delay model loading to ensure quick startup
+    if IS_HF_SPACES:
+        print("[INFO] HF Spaces detected - delaying model warmup for quick startup...")
+        await asyncio.sleep(2)  # Let the server fully start first
+    
     # Start model warmup in background thread
     thread = threading.Thread(target=warmup_model_background, daemon=True)
     thread.start()
@@ -935,7 +946,7 @@ async def health_check():
     """
     Health check endpoint for monitoring.
     
-    Returns system health status.
+    Returns system health status immediately (does not wait for model).
     """
     return {
         "status": "healthy",
@@ -943,6 +954,12 @@ async def health_check():
         "document_loaded": current_document["status"] == "Ready",
         "version": "2.1.0"
     }
+
+# Quick startup endpoint - responds immediately for HF Spaces health checks
+@app.get("/ping")
+async def ping():
+    """Quick ping endpoint for fast health checks"""
+    return {"status": "ok"}
     
 if __name__ == "__main__":
     # Note: UTF-8 encoding is already configured at the top of the file
