@@ -960,6 +960,22 @@ async def health_check():
 async def ping():
     """Quick ping endpoint for fast health checks"""
     return {"status": "ok"}
+
+@app.get("/env_status", tags=["Status"])
+async def env_status():
+    """
+    Check environment variable status (for debugging deployment issues).
+    Does not expose actual values, only whether they are set.
+    """
+    return {
+        "PINECONE_API_KEY": "✅ Set" if os.getenv("PINECONE_API_KEY") else "❌ Missing",
+        "GOOGLE_API_KEY": "✅ Set" if os.getenv("GOOGLE_API_KEY") else "❌ Missing",
+        "HF_TOKEN": "✅ Set" if os.getenv("HF_TOKEN") else "⚠️ Not set (optional)",
+        "SPACE_ID": os.getenv("SPACE_ID", "Not on HF Spaces"),
+        "is_hf_spaces": IS_HF_SPACES,
+        "model_ready": model_ready["status"],
+        "hint": "For HF Spaces: Set missing variables as 'Secrets' in Space Settings"
+    }
     
 if __name__ == "__main__":
     # Note: UTF-8 encoding is already configured at the top of the file
